@@ -80,7 +80,7 @@ def train_model(model,criterion,optimizer,dataload,num_epochs=20):
 
         print("epoch %d loss:%0.3f" % (epoch, epoch_loss))
 
-    torch.save(model.state_dict(),'./model/weights_%d.pth' % epoch)# 返回模型的所有内容
+    torch.save(model.state_dict(),'model/weights_%d.pth' % epoch)# 返回模型的所有内容
 
     return model
 
@@ -104,7 +104,8 @@ def train():
 
     #加载数据集
 
-    liver_dataset = LiverDataset("./data/train", transform=x_transform, target_transform=y_transform)
+    #liver_dataset = LiverDataset("./data/train", transform=x_transform, target_transform=y_transform)
+    liver_dataset = LiverDataset("data/train", transform=x_transform, target_transform=y_transform)
 
     dataloader = DataLoader(liver_dataset, batch_size=batch_size, shuffle=True,num_workers=4)
 
@@ -128,7 +129,8 @@ def test():
 
     model.load_state_dict(torch.load(args.weight,map_location='cpu'))
 
-    liver_dataset = LiverDataset("./data/val", transform=x_transform, target_transform=y_transform)
+#   liver_dataset = LiverDataset("./data/val", transform=x_transform, target_transform=y_transform)
+     liver_dataset = LiverDataset("data/val", transform=x_transform, target_transform=y_transform)
 
     dataloaders = DataLoader(liver_dataset)#batch_size默认为1
 
