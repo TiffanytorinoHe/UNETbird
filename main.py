@@ -1,5 +1,5 @@
 import os
-os.chdir('D:\\2020_courses\\CVDL\\project')
+#os.chdir('D:\\2020_courses\\CVDL\\project')
 
 
 import torch
