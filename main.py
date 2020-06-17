@@ -176,8 +176,8 @@ if __name__ == '__main__':
 
     if args.action == 'train':
 
-        train()
+        train(args)
 
     elif args.action == 'test':
 
-        test()
+        test(args)
