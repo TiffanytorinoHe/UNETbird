@@ -88,7 +88,7 @@ def train_model(model,criterion,optimizer,dataload,num_epochs=20):
 
 #训练模型
 
-def train():
+def train(args):
 
     model = unet.UNet(3,1).to(device)
 
@@ -123,14 +123,14 @@ def train():
 
 #测试
 
-def test():
+def test(args):
 
     model = unet.UNet(3,1)
 
-    model.load_state_dict(torch.load(args.weight,map_location='cpu'))
+    model.load_state_dict(torch.load(args.ckpt,map_location='cpu'))
 
 #   liver_dataset = LiverDataset("./data/val", transform=x_transform, target_transform=y_transform)
-     liver_dataset = LiverDataset("data/val", transform=x_transform, target_transform=y_transform)
+    liver_dataset = LiverDataset("data/val", transform=x_transform, target_transform=y_transform)
 
     dataloaders = DataLoader(liver_dataset)#batch_size默认为1
 
@@ -166,9 +166,9 @@ if __name__ == '__main__':
 
     parser.add_argument('action', type=str, help='train or test')#添加参数
 
-    parser.add_argument('--batch_size', type=int, default=4)
+    parser.add_argument('--batch_size', type=int, default=8)
 
-    parser.add_argument('--weight', type=str, help='the path of the mode weight file')
+    parser.add_argument('--ckpt', type=str, help='the path of the mode weight file')
 
     args = parser.parse_args()
 
