@@ -39,7 +39,7 @@ def train_model(model, criterion, optimizer, dataload, num_epochs=20):
             epoch_loss += loss.item()
             print("%d/%d,train_loss:%0.3f" % (step, (dt_size - 1) // dataload.batch_size + 1, loss.item()))
         print("epoch %d loss:%0.3f" % (epoch, epoch_loss/step))
-    torch.save(model.state_dict(), 'model/weights_%d.pth' % epoch)
+    torch.save(model.state_dict(), 'weights_%d.pth' % epoch)
     return model
 
 #训练模型
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     parse=argparse.ArgumentParser()
     parse = argparse.ArgumentParser()
     parse.add_argument("action", type=str, help="train or test")
-    parse.add_argument("--batch_size", type=int, default=2)
+    parse.add_argument("--batch_size", type=int, default=4)
     parse.add_argument("--ckpt", type=str, help="the path of model weight file")
     args = parse.parse_args()
 
