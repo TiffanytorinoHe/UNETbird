@@ -1,11 +1,17 @@
 import torch
-from torch import nn
+from vgg import *
+from resnet import *
 
-class DoubleConv(nn.Module):
-    def __init__(self, in_ch, out_ch):
-        super(DoubleConv, self).__init__()
+
+__all__ = ['UnetResNet18', 'UnetResNet34', 'UnetVGG13', 'UnetVGG16']
+
+
+class DecodeLayer(nn.Module):
+    def __init__(self, in_ch, mid_ch, out_ch):
+        super().__init__()
+        self.up = nn.ConvTranspose2d(in_ch, out_ch, 2, stride=2)
         self.conv = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, 3, padding=1),
+            nn.Conv2d(out_ch+mid_ch, out_ch, 3, padding=1),
             nn.BatchNorm2d(out_ch),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_ch, out_ch, 3, padding=1),
@@ -13,58 +19,63 @@ class DoubleConv(nn.Module):
             nn.ReLU(inplace=True)
         )
 
-    def forward(self, input):
-        return self.conv(input)
+    def forward(self, input1, input2):
+        x = self.up(input1)
+        x = torch.cat((x, input2), dim=1)
+        return self.conv(x)
 
 
 class Unet(nn.Module):
-    def __init__(self,in_ch,out_ch):
-        super(Unet, self).__init__()
+    def __init__(self, out_ch, encoder, num_channels):
+        super().__init__()
+        self.encoder1 = encoder[0]
+        self.encoder2 = encoder[1]
+        self.encoder3 = encoder[2]
+        self.encoder4 = encoder[3]
+        self.encoder5 = encoder[4]
+        self.decoder1 = DecodeLayer(num_channels[4], num_channels[3], num_channels[3])
+        self.decoder2 = DecodeLayer(num_channels[3], num_channels[2], num_channels[2])
+        self.decoder3 = DecodeLayer(num_channels[2], num_channels[1], num_channels[1])
+        self.decoder4 = DecodeLayer(num_channels[1], num_channels[0], num_channels[0])
+        self.classifier = nn.Conv2d(num_channels[0], out_ch, 1)
 
-        self.conv1 = DoubleConv(in_ch, 64)
-        self.pool1 = nn.MaxPool2d(2)
-        self.conv2 = DoubleConv(64, 128)
-        self.pool2 = nn.MaxPool2d(2)
-        self.conv3 = DoubleConv(128, 256)
-        self.pool3 = nn.MaxPool2d(2)
-        self.conv4 = DoubleConv(256, 512)
-        self.pool4 = nn.MaxPool2d(2)
-        self.conv5 = DoubleConv(512, 1024)
-        self.up6 = nn.ConvTranspose2d(1024, 512, 2, stride=2)
-        self.conv6 = DoubleConv(1024, 512)
-        self.up7 = nn.ConvTranspose2d(512, 256, 2, stride=2)
-        self.conv7 = DoubleConv(512, 256)
-        self.up8 = nn.ConvTranspose2d(256, 128, 2, stride=2)
-        self.conv8 = DoubleConv(256, 128)
-        self.up9 = nn.ConvTranspose2d(128, 64, 2, stride=2)
-        self.conv9 = DoubleConv(128, 64)
-        self.conv10 = nn.Conv2d(64,out_ch, 1)
+    def forward(self, input):
+        e1 = self.encoder1(input)
+        e2 = self.encoder2(e1)
+        e3 = self.encoder3(e2)
+        e4 = self.encoder4(e3)
+        e5 = self.encoder5(e4)
 
-    def forward(self,x):
-        c1=self.conv1(x)
-        p1=self.pool1(c1)
-        c2=self.conv2(p1)
-        p2=self.pool2(c2)
-        c3=self.conv3(p2)
-        p3=self.pool3(c3)
-        c4=self.conv4(p3)
-        p4=self.pool4(c4)
-        c5=self.conv5(p4)
-        up_6= self.up6(c5)
-        merge6 = torch.cat([up_6, c4], dim=1)
-        c6=self.conv6(merge6)
-        up_7=self.up7(c6)
-        merge7 = torch.cat([up_7, c3], dim=1)
-        c7=self.conv7(merge7)
-        up_8=self.up8(c7)
-        merge8 = torch.cat([up_8, c2], dim=1)
-        c8=self.conv8(merge8)
-        up_9=self.up9(c8)
-        merge9=torch.cat([up_9,c1],dim=1)
-        c9=self.conv9(merge9)
-        c10=self.conv10(c9)
-        #out = nn.Sigmoid()(c10)
-        return c10
+        d = self.decoder1(e5, e4)
+        d = self.decoder2(d, e3)
+        d = self.decoder3(d, e2)
+        d = self.decoder4(d, e1)
+
+        output = self.classifier(d)
+        # output = nn.Sigmoid()(output)
+
+        return output
 
 
-        
+def UnetVGG13(out_ch, pretrained=False):
+    num_channels = [64, 128, 256, 512, 512]  # vgg的channels
+    encoder = VGG13Encoder(pretrained)
+    return Unet(out_ch, encoder, num_channels)
+
+
+def UnetVGG16(out_ch, pretrained=False):
+    num_channels = [64, 128, 256, 512, 512]  # vgg的channels
+    encoder = VGG16Encoder(pretrained)
+    return Unet(out_ch, encoder, num_channels)
+
+
+def UnetResNet18(out_ch, pretrained=False):
+    num_channels = [64, 64, 128, 256, 512]  # resnet的channels
+    encoder = ResNet18Encoder(pretrained)
+    return Unet(out_ch, encoder, num_channels)
+
+
+def UnetResNet34(out_ch, pretrained=False):
+    num_channels = [64, 64, 128, 256, 512]  # resnet的channels
+    encoder = ResNet34Encoder(pretrained)
+    return Unet(out_ch, encoder, num_channels)
