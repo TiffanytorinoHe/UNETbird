@@ -1,3 +1,4 @@
+import os
 import torch
 import argparse
 from torch.utils.data import DataLoader
@@ -6,17 +7,22 @@ from torchvision.transforms import transforms
 from unet import Unet
 from dataset import LiverDataset,BirdDataset
 
+#os.chdir("D:/2020_courses/CVDL/project/UNETbird")
 
 # 是否使用cuda
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 x_transforms = transforms.Compose([
+    transforms.Resize((512,512)),
     transforms.ToTensor(),
     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
 
 # mask只需要转换为tensor
-y_transforms = transforms.ToTensor()
+y_transforms =transforms.Compose([
+    transforms.Resize((512,512)),
+    transforms.ToTensor()
+])
 
 def train_model(model, criterion, optimizer, dataload, num_epochs=20):
     for epoch in range(num_epochs):
@@ -75,7 +81,7 @@ if __name__ == '__main__':
     parse=argparse.ArgumentParser()
     parse = argparse.ArgumentParser()
     parse.add_argument("action", type=str, help="train or test")
-    parse.add_argument("--batch_size", type=int, default=4)
+    parse.add_argument("--batch_size", type=int, default=2)
     parse.add_argument("--ckpt", type=str, help="the path of model weight file")
     args = parse.parse_args()
 

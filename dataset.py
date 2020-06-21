@@ -55,6 +55,7 @@ class LiverDataset(data.Dataset):
 
         if self.transform is not None:
 
+            img_x= img.convert('RGB')
             img_x = self.transform(img_x)
 
         if self.target_transform is not None:
