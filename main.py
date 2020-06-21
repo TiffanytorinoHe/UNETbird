@@ -56,7 +56,7 @@ def train(args):
 def test(args):
     model = Unet(3, 1)
     model.load_state_dict(torch.load(args.ckpt,map_location='cpu'))
-    bird_dataset = LiverDataset("test/Image","test/Mask", transform=x_transforms,target_transform=y_transforms)
+    bird_dataset = BirdDataset("test/Image","test/Mask", transform=x_transforms,target_transform=y_transforms)
     dataloaders = DataLoader(bird_dataset, batch_size=1)
     model.eval()
     import matplotlib.pyplot as plt
