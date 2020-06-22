@@ -15,7 +15,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 x_transforms = transforms.Compose([
     transforms.Resize((512,512)),
     transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    transforms.Normalize([0.453,0.461,0.405], [0.202,0.198,0.203])
 ])
 
 # mask只需要转换为tensor
