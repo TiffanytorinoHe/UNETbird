@@ -26,13 +26,19 @@ class DecodeLayer(nn.Module):
 
 
 class Unet(nn.Module):
-    def __init__(self, out_ch, encoder, num_channels):
+    def __init__(self, out_ch, encoder, num_channels, freeze_encoder):
         super().__init__()
         self.encoder1 = encoder[0]
         self.encoder2 = encoder[1]
         self.encoder3 = encoder[2]
         self.encoder4 = encoder[3]
         self.encoder5 = encoder[4]
+
+        # 这里的代码冻结encoder参数，使用预训练模型时生效
+        if freeze_encoder:
+            for p in self.parameters():
+                p.requires_grad = False
+
         self.decoder1 = DecodeLayer(num_channels[4], num_channels[3], num_channels[3])
         self.decoder2 = DecodeLayer(num_channels[3], num_channels[2], num_channels[2])
         self.decoder3 = DecodeLayer(num_channels[2], num_channels[1], num_channels[1])
@@ -57,25 +63,25 @@ class Unet(nn.Module):
         return output
 
 
-def UnetVGG13(out_ch, pretrained=False):
+def UnetVGG13(out_ch, pretrained=False, freeze_encoder=False):
     num_channels = [64, 128, 256, 512, 512]  # vgg的channels
     encoder = VGG13Encoder(pretrained)
-    return Unet(out_ch, encoder, num_channels)
+    return Unet(out_ch, encoder, num_channels, freeze_encoder)
 
 
-def UnetVGG16(out_ch, pretrained=False):
+def UnetVGG16(out_ch, pretrained=False, freeze_encoder=False):
     num_channels = [64, 128, 256, 512, 512]  # vgg的channels
     encoder = VGG16Encoder(pretrained)
-    return Unet(out_ch, encoder, num_channels)
+    return Unet(out_ch, encoder, num_channels, freeze_encoder)
 
 
-def UnetResNet18(out_ch, pretrained=False):
+def UnetResNet18(out_ch, pretrained=False, freeze_encoder=False):
     num_channels = [64, 64, 128, 256, 512]  # resnet的channels
     encoder = ResNet18Encoder(pretrained)
-    return Unet(out_ch, encoder, num_channels)
+    return Unet(out_ch, encoder, num_channels, freeze_encoder)
 
 
-def UnetResNet34(out_ch, pretrained=False):
+def UnetResNet34(out_ch, pretrained=False, freeze_encoder=False):
     num_channels = [64, 64, 128, 256, 512]  # resnet的channels
     encoder = ResNet34Encoder(pretrained)
-    return Unet(out_ch, encoder, num_channels)
+    return Unet(out_ch, encoder, num_channels, freeze_encoder)

@@ -3,25 +3,29 @@ import argparse
 from torch.utils.data import DataLoader
 from torch import nn, optim
 from torchvision.transforms import transforms
+
 from unet import *
-from dataset import LiverDataset, VOCDataset
+from dataset import VOCDataset
+import utils
 
 
 # 是否使用cuda
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 # 超参数
-num_classes = 2    # 分类的类别数
-model_type = UnetResNet18   # 使用unet中定义的哪个模型
-scale_size = 448    # resnet使用448，vgg使用224
-EPOCHS = 20
+num_classes = 21  # 分类的类别数
+learning_rate = 1e-4
+batch_size = 16
+model_type = UnetResNet18  # 使用unet中定义的哪个模型
+scale_size = 448  # resnet使用448，vgg使用224
+image_dataset = VOCDataset
 
 # 图像处理
 x_transforms = transforms.Compose([
     transforms.Resize(scale_size),
     transforms.CenterCrop(scale_size),
     transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    transforms.Normalize([0.457, 0.439, 0.401], [0.237, 0.233, 0.238])
 ])
 
 y_transforms = transforms.Compose([
@@ -31,9 +35,11 @@ y_transforms = transforms.Compose([
 ])
 
 
-def train_model(model, criterion, optimizer, dataload, num_epochs=EPOCHS):
-    for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+def train_model(model, criterion, optimizer, dataload):
+    loss_info_list = []
+
+    for epoch in range(start_epoch, end_epoch):
+        print('Epoch {}/{}'.format(epoch, end_epoch - 1))
         print('-' * 10)
         dt_size = len(dataload.dataset)
         epoch_loss = 0
@@ -51,47 +57,71 @@ def train_model(model, criterion, optimizer, dataload, num_epochs=EPOCHS):
             optimizer.step()
             epoch_loss += loss.item()
             print("%d/%d,train_loss:%0.3f" % (step, (dt_size - 1) // dataload.batch_size + 1, loss.item()))
-        print("epoch %d loss:%0.3f" % (epoch, epoch_loss/step))
-        if epoch % 10 == 0:
-            torch.save(model.state_dict(), 'weights_%d.pth' % epoch)
+        epoch_info = "epoch %d loss:%0.3f" % (epoch, epoch_loss/step)
+        loss_info_list.append(epoch_info)
+        print(epoch_info)
+        if epoch % 5 == 0:
+            torch.save(model.state_dict(), './history/weights_%d.pth' % epoch)
+            torch.save(optimizer.state_dict(), './history/optim_%d.pth' % epoch)
+
+    with open('./history/loss_info.txt', 'r') as f:
+        f.write('\n'.join(loss_info_list))
+
     return model
 
 
 # 训练模型
 def train(args):
-    model = model_type(num_classes).to(device)
-    batch_size = args.batch_size
+    model = model_type(num_classes, args.pretrained, args.freeze_encoder).to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters())
-    liver_dataset = LiverDataset("data/train",transform=x_transforms,target_transform=y_transforms)
-    dataloaders = DataLoader(liver_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    optimizer = optim.Adam([p for p in model.parameters() if p.requires_grad], lr=learning_rate)
+    try:
+        model.load_state_dict(torch.load(weights_path))
+    except IOError:
+        print('model param not loaded')
+    try:
+        optimizer.load_state_dict(torch.load(optim_path))
+    except IOError:
+        print('optimizer param not loaded')
+    liver_dataset = image_dataset(True, x_transforms, y_transforms)
+    dataloaders = DataLoader(liver_dataset, batch_size=batch_size, shuffle=True, num_workers=16, pin_memory=True)
     train_model(model, criterion, optimizer, dataloaders)
 
 
 # 显示模型的输出结果
 def test(args):
     model = model_type(num_classes)
-    model.load_state_dict(torch.load(args.ckpt,map_location='cpu'))
-    liver_dataset = LiverDataset("data/val", transform=x_transforms,target_transform=y_transforms)
-    dataloaders = DataLoader(liver_dataset, batch_size=1)
+    model.load_state_dict(torch.load(args.ckpt, map_location='cpu'))
+    dataset = image_dataset(False, x_transforms, y_transforms)
+    dataloaders = DataLoader(dataset, batch_size=1)
     model.eval()
     import matplotlib.pyplot as plt
     plt.ion()
     with torch.no_grad():
-        for x, _ in dataloaders:
-            y=model(x).sigmoid()
-            img_y=torch.squeeze(y).numpy()
-            plt.imshow(img_y)
+        for x, label_y in dataloaders:
+            predict_y = model(x)
+            predict_y = utils.get_predict_image(predict_y[0])
+            plt.subplot(1, 2, 1)
+            plt.imshow(predict_y)
+            plt.subplot(1, 2, 2)
+            plt.imshow(transforms.ToPILImage()(label_y[0]))
             plt.pause(0.01)
         plt.show()
 
 
 if __name__ == '__main__':
+
+    # 运行参数（用于继续上次的训练）
+    start_epoch = 46
+    end_epoch = 61
+    weights_path = './history/weights_45.pth'
+    optim_path = './history/optim_45.pth'
+
     # 参数解析
     parse = argparse.ArgumentParser()
     parse.add_argument("action", type=str, help="train or test")
     parse.add_argument("pretrained", type=bool, default=False)
-    parse.add_argument("--batch_size", type=int, default=4)
+    parse.add_argument("freeze_encoder", type=bool, default=False)
     parse.add_argument("--ckpt", type=str, help="the path of model weight file")
     args = parse.parse_args()
 
